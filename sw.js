@@ -1,6 +1,6 @@
-// Iron v2.3.0 — offline cache. Serves the saved copy instantly and downloads updates in the
+// Iron v2.3.2 — offline cache. Serves the saved copy instantly and downloads updates in the
 // background, so a new version only applies the NEXT time Iron is opened (never mid-chat).
-const CACHE = "iron-v2.3.0";
+const CACHE = "iron-v2.3.2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {

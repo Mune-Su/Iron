@@ -1,4 +1,13 @@
-# IRON v2.3.0 — AUTZ Field Assistant
+# IRON v2.3.2 — AUTZ Field Assistant
+
+## What's new in 2.3.2
+- Default persona is now a proud, fiercely loyal African warrior woman. Replaces the older built-in
+  personas automatically; a persona you wrote yourself is left alone.
+
+## What's new in 2.3.1
+- New persona: Iron is a warm, friendly woman. Supportive instead of curt, happy to chat casually,
+  and she adjusts her tone when you ask. Replaces the old built-in persona automatically
+  (a persona you wrote yourself in Settings is left alone).
 
 ## What's new in 2.3.0
 - New live portrait: Iron now has the new face (pink-and-black rider jacket). She still blinks,
@@ -10,8 +19,8 @@
 ## Updating
 PC (from the Iron repo folder):
     & "$HOME\Projects\Iron\update-iron.ps1"
-    git commit -m "v2.3.0"
+    git commit -m "v2.3.2"
     ipush
 
 `ipush` waits for the Vercel deploy, then starts and watches the Android APK build.
-The Android app shows an "Iron 2.3.0 is available" banner on next launch.
+The Android app shows an "Iron 2.3.2 is available" banner on next launch.
