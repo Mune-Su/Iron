@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IRON // AUTZ Field Assistant</title>
+<style>
+:root{
+  --bg:#0b1220; --panel:#111a2e; --panel2:#16213a; --line:#24324f;
+  --amber:#ffb020; --amber2:#ff8a00; --text:#e6ecf7; --muted:#8a98b5;
+  --user:#1c2a47; --danger:#ff5a5a; --ok:#3ddc84;
+  --mono:"Cascadia Code","Consolas","JetBrains Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,sans-serif}
+button{font-family:var(--mono);cursor:pointer}
+input,textarea,select{font-family:var(--mono);background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--amber)}
+.app{display:grid;grid-template-columns:260px 1fr;height:100vh}
+.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;gap:10px;align-items:center;padding:14px;border-bottom:1px solid var(--line)}
+.brand img{width:44px;height:44px;border-radius:50%;border:2px solid var(--amber);object-fit:cover}
+.brand .n{font-family:var(--mono);font-weight:700;color:var(--amber);letter-spacing:1px}
+.brand .s{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px}
+.btn:hover{border-color:var(--amber);color:var(--amber)}
+.btn.primary{background:var(--amber);color:#111;border-color:var(--amber);font-weight:700}
+.btn.primary:hover{background:var(--amber2);color:#111}
+.btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+.side .new{margin:12px}
+.chats{flex:1;overflow:auto;padding:0 8px}
+.chat-item{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--muted);border:1px solid transparent}
+.chat-item:hover{background:var(--panel2)}
+.chat-item.active{background:var(--panel2);color:var(--text);border-color:var(--line);border-left:3px solid var(--amber)}
+.chat-item .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item .x{opacity:0;background:none;border:none;color:var(--muted);font-size:14px}
+.chat-item:hover .x{opacity:1}
+.chat-item .x:hover{color:var(--danger)}
+.side .foot{border-top:1px solid var(--line);padding:10px;display:flex;gap:6px}
+.side .foot .btn{flex:1}
+.status{font-family:var(--mono);font-size:11px;color:var(--muted);padding:0 12px 10px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:6px}
+.dot.ok{background:var(--ok)} .dot.bad{background:var(--danger)}
+.main{position:relative;display:flex;flex-direction:column;min-height:0;background:radial-gradient(ellipse at top,#132040 0%,var(--bg) 60%)}
+.top{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--muted)}
+.top .title{color:var(--text);font-size:14px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top select{padding:4px 6px;font-size:12px;max-width:240px}
+.msgs{flex:1;overflow:auto;padding:24px 0}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px}
+.msg{display:flex;gap:12px;margin-bottom:18px}
+.msg .av{width:36px;height:36px;border-radius:50%;flex-shrink:0;object-fit:cover;border:2px solid var(--amber)}
+.msg.user{flex-direction:row-reverse}
+.msg.user .av{display:none}
+.bubble{padding:12px 14px;border-radius:10px;line-height:1.55;font-size:14.5px;max-width:100%;overflow-wrap:anywhere}
+.msg.bot .bubble{background:var(--panel);border:1px solid var(--line);border-top-left-radius:2px}
+.msg.user .bubble{background:var(--user);border:1px solid #2c4170;border-top-right-radius:2px;white-space:pre-wrap}
+.bubble p{margin:0 0 8px} .bubble p:last-child{margin-bottom:0}
+.bubble ul,.bubble ol{margin:4px 0 8px;padding-left:22px}
+.bubble h1,.bubble h2,.bubble h3{font-family:var(--mono);color:var(--amber);margin:10px 0 6px;font-size:15px}
+.bubble code{font-family:var(--mono);background:#0a0f1c;padding:1px 5px;border-radius:4px;color:#ffd27a;font-size:13px}
+.bubble a{color:var(--amber)}
+.bubble table{border-collapse:collapse;margin:8px 0;font-size:13px}
+.bubble th,.bubble td{border:1px solid var(--line);padding:5px 8px}
+.bubble th{background:var(--panel2);color:var(--amber)}
+.code{position:relative;margin:8px 0}
+.code pre{background:#070b14;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;margin:0}
+.code pre code{background:none;padding:0;color:#d8e2f5}
+.code .lang{position:absolute;top:0;left:10px;font-size:10px;color:var(--muted);font-family:var(--mono)}
+.code .cp{position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px}
+.tools{display:flex;gap:6px;margin-top:6px;opacity:0;transition:.15s}
+.msg:hover .tools{opacity:1}
+.tools button{background:none;border:none;color:var(--muted);font-size:11px;padding:2px 4px}
+.tools button:hover{color:var(--amber)}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--amber);vertical-align:-2px;animation:b 1s steps(1) infinite}
+@keyframes b{50%{opacity:0}}
+.err{color:var(--danger);font-family:var(--mono);font-size:13px;white-space:pre-wrap}
+.welcome{text-align:center;padding:40px 20px}
+.welcome img{width:130px;height:130px;border-radius:50%;border:3px solid var(--amber);box-shadow:0 0 40px rgba(255,176,32,.35);object-fit:cover}
+.welcome h1{font-family:var(--mono);color:var(--amber);letter-spacing:2px;margin:16px 0 4px}
+.welcome p{color:var(--muted);margin:0 0 22px}
+.hero3d{width:240px;height:240px;margin:0 auto;position:relative;border-radius:50%;background:radial-gradient(circle at 50% 45%,rgba(255,176,32,.16),transparent 65%)}
+.hero3d img{position:absolute;left:55px;top:55px}
+.hero3d.live img{display:none}
+.dock{position:absolute;right:18px;bottom:100px;width:170px;height:200px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(circle at 50% 40%,#1a2850,#0b1220 75%);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;z-index:5}
+.dockStage{position:absolute;inset:0}
+.dockLabel{position:absolute;bottom:5px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:3px;pointer-events:none}
+.dockBar{position:absolute;top:5px;right:5px;display:flex;gap:4px;opacity:0;transition:.15s}
+.dock:hover .dockBar{opacity:1}
+.dockBar button{background:rgba(11,18,32,.85);border:1px solid var(--line);color:var(--muted);border-radius:4px;font-size:12px;padding:2px 7px}
+.dockBar button:hover{color:var(--amber);border-color:var(--amber)}
+.dockMini{position:absolute;right:18px;bottom:100px;z-index:5}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:20px;font-size:12.5px}
+.chip:hover{border-color:var(--amber);color:var(--amber)}
+.composer{padding:12px 20px 18px}
+.attach{max-width:900px;margin:0 auto 6px;display:flex;flex-wrap:wrap;gap:6px}
+.att{font-family:var(--mono);font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px 8px;color:var(--amber)}
+.att button{background:none;border:none;color:var(--muted);padding:0 0 0 4px}
+.box{max-width:900px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:8px;align-items:flex-end}
+.box:focus-within{border-color:var(--amber)}
+.box.drag{border-color:var(--amber);border-style:dashed}
+.box textarea{flex:1;border:none;background:transparent;resize:none;max-height:220px;font-family:"Segoe UI",system-ui,sans-serif;font-size:14.5px;padding:6px}
+.hint{max-width:900px;margin:6px auto 0;font-size:11px;color:var(--muted);font-family:var(--mono);text-align:center}
+.modal{position:fixed;inset:0;background:rgba(3,6,12,.7);display:none;align-items:center;justify-content:center;z-index:10}
+.modal.open{display:flex}
+.sheet{width:min(880px,94vw);height:min(660px,92vh);background:var(--panel);border:1px solid var(--line);border-radius:10px;display:grid;grid-template-rows:auto 1fr auto;font-family:var(--mono);overflow:hidden}
+.sheet .hd{padding:12px 16px;border-bottom:1px solid var(--line);color:var(--amber)}
+.sheet .bd{display:grid;grid-template-columns:170px 1fr;min-height:0}
+.nav{border-right:1px solid var(--line);padding:8px}
+.nav div{padding:8px 10px;border-radius:6px;font-size:12px;color:var(--muted);cursor:pointer}
+.nav div.active{background:var(--panel2);color:var(--amber);border-left:3px solid var(--amber)}
+.pane{padding:16px;overflow:auto}
+.card{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px;background:var(--bg)}
+.card h3{margin:0 0 10px;font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:1px}
+.row{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:12px}
+.row:last-child{margin-bottom:0}
+.row label{color:var(--muted)}
+.row small{color:var(--muted);font-size:11px;line-height:1.6}
+.row textarea{min-height:170px;resize:vertical;font-size:12px}
+.inline{display:flex;gap:8px;align-items:center}
+.inline input[type=range]{flex:1}
+.sheet .ft{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--amber);color:#111;padding:8px 14px;border-radius:6px;font-family:var(--mono);font-size:12px;display:none;z-index:20}
+@media(max-width:760px){.app{grid-template-columns:1fr}.side{display:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <img id="brandAv" alt="">
+      <div><div class="n" id="brandName">IRON</div><div class="s">AUTZ Field Assistant</div></div>
+    </div>
+    <button class="btn primary new" onclick="newChat()">+ New chat</button>
+    <div class="chats" id="chatList"></div>
+    <div class="status" id="status"><span class="dot"></span>Not connected</div>
+    <div class="foot">
+      <button class="btn" onclick="openSettings()">⚙ Settings</button>
+      <button class="btn" onclick="exportChat()">⇩ Export</button>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <div class="title" id="chatTitle">New chat</div>
+      <select id="quickModel" title="Switch model"></select>
+    </div>
+    <div class="msgs" id="msgs"><div class="wrap" id="wrap"></div></div>
+    <div class="dock" id="dock" hidden>
+      <div class="dockStage" id="dockStage"></div><div class="dockLabel" id="dockLabel">IRON</div>
+      <div class="dockBar"><button title="Pop out — floats on top of all your windows" onclick="ironAvatar.popOut()">⧉</button><button title="Hide" onclick="setDock(true)">–</button></div>
+    </div>
+    <button class="btn dockMini" id="dockMini" hidden onclick="setDock(false)">◉ IRON</button>
+    <div class="composer">
+      <div class="attach" id="attach"></div>
+      <div class="box" id="box">
+        <label class="btn" title="Attach code/text files">📎<input type="file" id="fileIn" multiple hidden></label>
+        <textarea id="input" rows="1" placeholder="Ask Iron anything..."></textarea>
+        <button class="btn primary" id="sendBtn" onclick="send()">Send ➤</button>
+      </div>
+      <div class="hint">Enter to send · Shift+Enter new line · Drop code files on the box to attach · Chats saved in this browser only</div>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div class="hd">⚙ SETTINGS</div>
+    <div class="bd">
+      <div class="nav" id="nav">
+        <div data-p="conn" class="active">Connection</div>
+        <div data-p="persona">Persona</div>
+        <div data-p="quick">Quick actions</div>
+        <div data-p="data">Data</div>
+      </div>
+      <div class="pane">
+        <div data-pane="conn">
+          <div class="card"><h3>Brain</h3>
+            <div class="row"><label>Provider</label>
+              <select id="sProvider">
+                <optgroup label="Free">
+                <option value="gemini">Google Gemini — free tier (best free all-rounder)</option>
+                <option value="mistral">Mistral — free mode (Codestral for code)</option>
+                <option value="groq">Groq — free tier (very fast)</option>
+                <option value="openrouter">OpenRouter — :free models</option>
+                <option value="ollama">Ollama — local, free, private</option>
+                <option value="lmstudio">LM Studio — local, free</option>
+                </optgroup>
+                <optgroup label="Link your account">
+                <option value="m365copilot">Microsoft 365 Copilot (work sign-in)</option>
+                </optgroup>
+                <optgroup label="Paid / other">
+                <option value="anthropic">Anthropic Claude (paid API)</option>
+                <option value="openai">OpenAI (paid API)</option>
+                <option value="custom">Custom (OpenAI-compatible)</option>
+                </optgroup>
+              </select></div>
+            <div id="keyedRows">
+            <div class="row"><label>Endpoint URL</label><input id="sUrl"></div>
+            <div class="row"><label>API key</label><input id="sKey" type="password" placeholder="Not needed for Ollama / LM Studio">
+              <small>Stored only in this browser's local storage. Only ever sent to the endpoint above.</small></div>
+            <div class="row"><label>Model</label>
+              <div class="inline"><input id="sModel" list="modelList" style="flex:1"><datalist id="modelList"></datalist>
+              <button class="btn" onclick="fetchModels()">Fetch list</button></div>
+              <small>Fetch list also fills the model switcher in the top bar.</small></div>
+            <div class="row"><button class="btn" onclick="testConn()">Test connection</button></div>
+            </div>
+            <div id="cpRows" hidden>
+              <div class="row"><label>Directory (tenant) ID</label><input id="sCpTenant" placeholder="organizations"></div>
+              <div class="row"><label>Application (client) ID</label><input id="sCpClient" placeholder="from your Entra app registration"></div>
+              <div class="row"><label>Redirect URI (register this exact value)</label>
+                <div class="inline"><input id="cpRedirect" readonly style="flex:1"><button class="btn" onclick="navigator.clipboard.writeText($('cpRedirect').value);toast('Copied')">Copy</button></div></div>
+              <div class="row"><div class="inline">
+                <button class="btn primary" onclick="cpSignIn()">Sign in with Microsoft</button>
+                <button class="btn" onclick="cpSignOut()">Sign out</button>
+                <span id="cpState" style="font-size:11px;color:var(--muted)"></span></div></div>
+            </div>
+          </div>
+          <div class="card" id="cpHelp" hidden><h3>Copilot link setup (one time)</h3>
+            <div class="row"><small>
+            <b>Needs:</b> a Microsoft 365 Copilot licence on your work account, plus an app registration your IT admin consents to.<br><br>
+            1. Run Iron from localhost (sign-in doesn't work from a double-clicked file). In the folder with the HTML:<br>
+            <code>npx serve -l 5500</code> → open <code>http://localhost:5500</code> and click the file.<br>
+            2. Entra admin centre → App registrations → New registration → platform <b>Single-page application</b>, redirect URI = the value above.<br>
+            3. API permissions → Microsoft Graph → <b>Delegated</b>: Sites.Read.All, Mail.Read, People.Read.All, OnlineMeetingTranscript.Read.All, Chat.Read, ChannelMessage.Read.All, ExternalItem.Read.All → Grant admin consent.<br>
+            4. Paste the tenant + client IDs here, Save, then Sign in.<br><br>
+            Heads up: this is Copilot's beta Chat API. Copilot keeps the chat history on its side and answers grounded in your work data. Model picking, temperature and reply length don't apply. Check your company's IT policy before using a work account for personal projects.</small></div>
+          </div>
+          <div class="card"><h3>Tuning</h3>
+            <div class="row"><label>Temperature: <span id="tVal"></span></label>
+              <div class="inline"><input id="sTemp" type="range" min="0" max="1.5" step="0.05"></div>
+              <small>Lower = straighter answers (good for code). Claude caps at 1.0.</small></div>
+            <div class="row"><label>Messages of history sent each time</label><input id="sHist" type="number" min="2" max="100"></div>
+            <div class="row"><label>Max reply length (tokens)</label><input id="sMaxTok" type="number" min="256" max="128000" step="256">
+              <small>16000 handles big code files. You only pay for what's actually used.</small></div>
+          </div>
+          <div class="card" id="freeHelp"><h3>Free keys (one time, no card needed)</h3>
+            <div class="row"><small>
+            <b>Gemini:</b> <code>aistudio.google.com</code> → Get API key. Best free option for coding.<br>
+            <b>Mistral:</b> <code>console.mistral.ai</code> → pick the Free plan → API Keys. Use <code>codestral-latest</code> for code.<br>
+            <b>Groq:</b> <code>console.groq.com</code> → API Keys.<br>
+            <b>OpenRouter:</b> <code>openrouter.ai</code> → Keys. Fetch list only shows the free models.<br>
+            Then paste the key, hit <b>Fetch list</b>, pick a model, Save.<br><br>
+            Free tiers have daily limits, and some providers may use free-tier prompts to improve their models, so don't paste work secrets into them. Use Ollama when you need fully private.</small></div>
+          </div>
+          <div class="card"><h3>Ollama setup (one time)</h3>
+            <div class="row"><small>1. <code>winget install Ollama.Ollama</code><br>
+            2. <code>ollama pull llama3.1</code><br>
+            3. <code>[Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS","*","User")</code> then restart Ollama</small></div>
+          </div>
+        </div>
+        <div data-pane="persona" hidden>
+          <div class="card"><h3>Identity</h3>
+            <div class="row"><label>Bot name</label><input id="sName"></div>
+            <div class="row"><label>What it calls you</label><input id="sUserName"></div>
+            <div class="row"><label>Avatar</label>
+              <div class="inline"><img id="sAvPrev" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--amber);object-fit:cover">
+              <input type="file" id="sAvFile" accept="image/*"><button class="btn" onclick="resetAvatar()">Default</button></div></div>
+          </div>
+          <div class="card"><h3>3D avatar</h3>
+            <div class="row"><label><input type="checkbox" id="sAvatar3d"> Show 3D avatar (welcome screen + corner dock)</label></div>
+            <div class="row"><label>Visor / glow colour</label><input type="color" id="sVisor" style="width:80px;height:34px;padding:2px"></div>
+            <div class="row"><small>Hover the dock → <b>⧉</b> pops him out into a small always-on-top window that floats over everything on your screen (Edge/Chrome). Click him for a nod. Needs internet the first time to load the 3D engine; falls back to the picture if offline.</small></div>
+          </div>
+          <div class="card"><h3>Personality / system prompt</h3>
+            <div class="row"><textarea id="sSystem"></textarea>
+              <small>{name} and {user} are swapped in automatically.</small></div>
+            <div class="row"><button class="btn" onclick="resetPersona()">Reset to default</button></div>
+          </div>
+        </div>
+        <div data-pane="quick" hidden>
+          <div class="card"><h3>Quick action buttons</h3>
+            <div class="row"><textarea id="sQuick"></textarea>
+              <small>One per line: <code>Label | prompt text</code>. Shown on the new-chat screen.</small></div>
+          </div>
+        </div>
+        <div data-pane="data" hidden>
+          <div class="card"><h3>Backup</h3>
+            <div class="row"><div class="inline">
+              <button class="btn" onclick="backup()">Export everything (.json)</button>
+              <label class="btn">Import backup<input type="file" id="restoreFile" accept=".json" hidden></label></div>
+              <small>API key is never included in backups.</small></div>
+          </div>
+          <div class="card"><h3>Danger zone</h3>
+            <div class="row"><button class="btn danger" onclick="wipe()">Delete all chats</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ft">
+      <button class="btn" onclick="closeSettings()">Close</button>
+      <button class="btn primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const VERSION="2.0";
+const DEFAULT_AVATAR = "data:image/jpeg;base64,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";
+const PROVIDERS = {
+  gemini:{url:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-3.5-flash"},
+  mistral:{url:"https://api.mistral.ai/v1",model:"codestral-latest"},
+  m365copilot:{url:"",model:"Microsoft 365 Copilot"},
+  anthropic:{url:"https://api.anthropic.com/v1",model:"claude-sonnet-5-5"},
+  openrouter:{url:"https://openrouter.ai/api/v1",model:""},
+  ollama:{url:"http://localhost:11434/v1",model:"llama3.1"},
+  openai:{url:"https://api.openai.com/v1",model:"gpt-4o-mini"},
+  groq:{url:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},
+  lmstudio:{url:"http://localhost:1234/v1",model:""},
+  custom:{url:"",model:""}
+};
+const DEFAULT_SYSTEM = `You are {name}, a battle-hardened, post-apocalyptic wasteland warrior turned AI field assistant, built for {user}.
+Personality: straight-talking Aussie, dry humour, light banter, zero waffle. Use Aussie slang sparingly (mate, reckon, no worries, she'll be right) - never so much it gets in the way.
+Rules:
+- Lead with the answer. Short for simple questions, step-by-step for technical ones.
+- When giving terminal commands, use Windows PowerShell syntax.
+- Use markdown: code blocks (with a language tag) for code, tables for comparisons.
+- For code changes: give complete, drop-in code for what changes, say exactly which file and where, and don't invent APIs. Ask if you need a file that wasn't shared.
+- If you don't know or aren't sure, say so plainly. Never make things up.
+- When the job calls for it (work emails, formal docs), drop the banter and write professionally.`;
+const DEFAULT_QUICK = `✉ Write a work email | Help me write a professional email. Here's the gist: 
+⚡ PowerShell help | I need a PowerShell command to 
+🐛 Fix my code | Find and fix the bug in this code. Explain the cause in one line, then give the fixed code:
+
+🔍 Review my code | Review this code. List real bugs first, then risky bits, then quick wins:
+
+🚀 EVE Online | Quick EVE Online question: 
+📋 Summarise this | Summarise this into key points and actions:
+
+💡 Explain it simply | Explain this like I'm smart but new to it: `;
+const DEF = {provider:"gemini",url:PROVIDERS.gemini.url,key:"",model:PROVIDERS.gemini.model,cpTenant:"",cpClient:"",temp:0.5,hist:30,maxTok:16000,
+  name:"Iron",avatar3d:true,visorColor:"#ffb020",dockHidden:false,userName:"Bala",system:DEFAULT_SYSTEM,quick:DEFAULT_QUICK,avatar:"",models:[]};
+
+// migrate from the old "Rusty" build
+["settings","chats","current","cptok"].forEach(k=>{const o=localStorage.getItem("rusty."+k);if(o!==null&&localStorage.getItem("iron."+k)===null)localStorage.setItem("iron."+k,o);});
+let S = Object.assign({}, DEF, JSON.parse(localStorage.getItem("iron.settings")||"{}"));
+if(S.name==="Rusty")S.name="Iron";
+window.getIronSettings=()=>S;
+const avatarState=s=>window.ironAvatar&&window.ironAvatar.setState(s);
+function setDock(h){S.dockHidden=h;saveS();render();}
+let chats = JSON.parse(localStorage.getItem("iron.chats")||"[]");
+let current = localStorage.getItem("iron.current");
+let busy=false, ctrl=null, files=[];
+
+const $ = id => document.getElementById(id);
+const av = () => S.avatar || DEFAULT_AVATAR;
+const saveChats = () => {localStorage.setItem("iron.chats",JSON.stringify(chats));localStorage.setItem("iron.current",current||"");};
+const saveS = () => localStorage.setItem("iron.settings",JSON.stringify(S));
+const chat = () => chats.find(c=>c.id===current);
+function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(e._t);e._t=setTimeout(()=>e.style.display="none",2600);}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+/* ---------- Provider plumbing ---------- */
+const isClaude=()=>S.provider==="anthropic"||/api\.anthropic\.com/.test(S.url);
+const base=()=>S.url.replace(/\/$/,"");
+const endpoint=()=>base()+(isClaude()?"/messages":"/chat/completions");
+function hdrs(){
+  const h={"Content-Type":"application/json"};
+  if(isClaude()){h["x-api-key"]=S.key;h["anthropic-version"]="2023-06-01";h["anthropic-dangerous-direct-browser-access"]="true";}
+  else if(S.key) h.Authorization="Bearer "+S.key;
+  if(S.provider==="openrouter"){h["HTTP-Referer"]="https://autz.local";h["X-Title"]="AUTZ Iron";}
+  return h;
+}
+function sysPrompt(){
+  const now=new Date().toLocaleString("en-AU",{dateStyle:"full",timeStyle:"short"});
+  return S.system.replaceAll("{name}",S.name).replaceAll("{user}",S.userName)+`\nCurrent date/time: ${now}.`;
+}
+function reqBody(history,stream){
+  if(isClaude()){
+    const msgs=[];history.forEach(m=>{const l=msgs.at(-1);if(l&&l.role===m.role)l.content+="\n\n"+m.content;else msgs.push({...m});});
+    while(msgs.length&&msgs[0].role!=="user")msgs.shift();
+    return {model:S.model,max_tokens:+S.maxTok||16000,temperature:Math.min(+S.temp,1),stream,system:sysPrompt(),messages:msgs};
+  }
+  return {model:S.model,temperature:+S.temp,max_tokens:+S.maxTok||undefined,stream,messages:[{role:"system",content:sysPrompt()},...history]};
+}
+function deltaText(j){
+  if(j.type==="error"||j.error) throw new Error(j.error?.message||"Stream error");
+  if(isClaude()) return j.type==="content_block_delta"&&j.delta?.type==="text_delta"?j.delta.text:"";
+  return j.choices?.[0]?.delta?.content||"";
+}
+
+/* ---------- Microsoft 365 Copilot link (OAuth PKCE + Graph Chat API) ---------- */
+const isCp=()=>S.provider==="m365copilot";
+const CP_SCOPE=["Sites.Read.All","Mail.Read","People.Read.All","OnlineMeetingTranscript.Read.All","Chat.Read","ChannelMessage.Read.All","ExternalItem.Read.All"]
+  .map(p=>"https://graph.microsoft.com/"+p).join(" ")+" offline_access openid profile";
+const cpAuth=()=>`https://login.microsoftonline.com/${S.cpTenant||"organizations"}/oauth2/v2.0`;
+const redirectUri=()=>location.origin+location.pathname;
+const b64url=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+async function errText(r){let t=await r.text();try{const j=JSON.parse(t);t=j.error?.message||j.error_description||j.message||t;}catch{}return String(t).slice(0,300);}
+async function cpSignIn(){
+  if(location.protocol==="file:")return toast("Run Iron from http://localhost first — see setup below");
+  readForm();saveS();
+  if(!S.cpClient)return toast("Enter the Application (client) ID first");
+  const v=b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const ch=b64url(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
+  const st=b64url(crypto.getRandomValues(new Uint8Array(16)));
+  sessionStorage.setItem("iron.pkce",JSON.stringify({v,st}));
+  const p=new URLSearchParams({client_id:S.cpClient,response_type:"code",redirect_uri:redirectUri(),scope:CP_SCOPE,
+    code_challenge:ch,code_challenge_method:"S256",state:st,prompt:"select_account"});
+  location.href=cpAuth()+"/authorize?"+p;
+}
+async function cpTokenReq(params){
+  const r=await fetch(cpAuth()+"/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({client_id:S.cpClient,scope:CP_SCOPE,...params})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error((j.error_description||j.error||r.status+"").split(/\r?\n/)[0]);
+  const tok={at:j.access_token,rt:j.refresh_token,exp:Date.now()+((j.expires_in||3600)-60)*1000};
+  localStorage.setItem("iron.cptok",JSON.stringify(tok));return tok;
+}
+async function cpHandleRedirect(){
+  const q=new URLSearchParams(location.search);if(!q.get("code")&&!q.get("error"))return;
+  history.replaceState(null,"",redirectUri());
+  if(q.get("error"))return toast("Sign-in failed: "+(q.get("error_description")||q.get("error")).split(/\r?\n/)[0]);
+  const pk=JSON.parse(sessionStorage.getItem("iron.pkce")||"{}");sessionStorage.removeItem("iron.pkce");
+  if(pk.st!==q.get("state"))return toast("Sign-in state mismatch — try again");
+  try{await cpTokenReq({grant_type:"authorization_code",code:q.get("code"),redirect_uri:redirectUri(),code_verifier:pk.v});
+    setStatus(true);toast("✔ Linked to Microsoft 365 Copilot");}catch(e){toast("✖ "+e.message);}
+}
+async function cpToken(){
+  let t=JSON.parse(localStorage.getItem("iron.cptok")||"null");
+  if(!t)throw new Error("Not signed in to Copilot — Settings → Connection → Sign in with Microsoft");
+  if(Date.now()<t.exp)return t.at;
+  if(!t.rt)throw new Error("Copilot session expired — sign in again");
+  try{return (await cpTokenReq({grant_type:"refresh_token",refresh_token:t.rt})).at;}
+  catch{localStorage.removeItem("iron.cptok");throw new Error("Copilot session expired — sign in again");}
+}
+function cpSignOut(){localStorage.removeItem("iron.cptok");cpStateLbl();toast("Signed out of Copilot");}
+function cpStateLbl(){const e=$("cpState");if(e)e.textContent=localStorage.getItem("iron.cptok")?"● signed in":"○ not signed in";}
+async function cpAsk(c,text,signal){
+  const tok=await cpToken(),G="https://graph.microsoft.com/beta/copilot/conversations";
+  const H={Authorization:"Bearer "+tok,"Content-Type":"application/json"};
+  if(!c.cpId){const r=await fetch(G,{method:"POST",headers:H,body:"{}",signal});
+    if(!r.ok)throw new Error(r.status+" — "+await errText(r));c.cpId=(await r.json()).id;}
+  const body={message:{text},locationHint:{timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},
+    additionalContext:[{text:"Persona and style instructions: "+sysPrompt()}]};
+  const r=await fetch(`${G}/${c.cpId}/chat`,{method:"POST",headers:H,body:JSON.stringify(body),signal});
+  if(!r.ok){if(r.status===404)c.cpId=null;throw new Error(r.status+" — "+await errText(r));}
+  const j=await r.json();const ms=(j.messages||[]).filter(m=>m.text&&m.text.trim()!==text.trim());
+  return ms.at(-1)?.text||"(Copilot returned no text)";
+}
+
+/* ---------- Markdown (escapes first, so it's safe) ---------- */
+function md(src){
+  const blocks=[];
+  src=src.replace(/```([\w#+.-]*)\n?([\s\S]*?)(```|$)/g,(m,lang,code)=>{blocks.push({lang,code:code.replace(/\n$/,"")});return `\u0000${blocks.length-1}\u0000`;});
+  const h=esc(src).replace(/&quot;/g,'"');
+  const inline=t=>t
+    .replace(/`([^`\n]+)`/g,"<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g,"$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s"]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const lines=h.split("\n");let out=[],list=null,para=[],i=0;
+  const flushP=()=>{if(para.length){out.push("<p>"+inline(para.join("<br>"))+"</p>");para=[];}};
+  const flushL=()=>{if(list){out.push(`<${list.t}>`+list.items.map(x=>"<li>"+inline(x)+"</li>").join("")+`</${list.t}>`);list=null;}};
+  while(i<lines.length){
+    const l=lines[i];let m;
+    if(/^\u0000\d+\u0000$/.test(l.trim())){flushP();flushL();out.push(l.trim());i++;continue;}
+    if((m=l.match(/^(#{1,4})\s+(.*)/))){flushP();flushL();const n=Math.min(m[1].length,3);out.push(`<h${n}>${inline(m[2])}</h${n}>`);i++;continue;}
+    if(/^\s*\|.*\|\s*$/.test(l)&&i+1<lines.length&&/^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
+      flushP();flushL();const row=r=>r.trim().replace(/^\||\|$/g,"").split("|").map(c=>inline(c.trim()));
+      let t="<table><tr>"+row(l).map(c=>"<th>"+c+"</th>").join("")+"</tr>";i+=2;
+      while(i<lines.length&&/^\s*\|.*\|\s*$/.test(lines[i])){t+="<tr>"+row(lines[i]).map(c=>"<td>"+c+"</td>").join("")+"</tr>";i++;}
+      out.push(t+"</table>");continue;}
+    if((m=l.match(/^\s*[-*•]\s+(.*)/))){flushP();if(!list||list.t!=="ul"){flushL();list={t:"ul",items:[]};}list.items.push(m[1]);i++;continue;}
+    if((m=l.match(/^\s*\d+[.)]\s+(.*)/))){flushP();if(!list||list.t!=="ol"){flushL();list={t:"ol",items:[]};}list.items.push(m[1]);i++;continue;}
+    if(!l.trim()){flushP();flushL();i++;continue;}
+    flushL();para.push(l);i++;
+  }
+  flushP();flushL();
+  return out.join("").replace(/\u0000(\d+)\u0000/g,(m,n)=>{const b=blocks[n];
+    return `<div class="code"><span class="lang">${esc(b.lang||"")}</span><button class="btn cp" onclick="copyCode(this)">Copy</button><pre><code>${esc(b.code)}</code></pre></div>`;});
+}
+function copyCode(b){navigator.clipboard.writeText(b.parentElement.querySelector("code").innerText);b.textContent="Copied";setTimeout(()=>b.textContent="Copy",1200);}
+
+/* ---------- Rendering ---------- */
+function renderList(){
+  $("chatList").innerHTML="";
+  chats.slice().sort((a,b)=>b.updated-a.updated).forEach(c=>{
+    const d=document.createElement("div");d.className="chat-item"+(c.id===current?" active":"");
+    d.innerHTML=`<span class="t"></span><button class="x" title="Delete">✕</button>`;
+    d.querySelector(".t").textContent=c.title;
+    d.onclick=()=>{if(busy)return;current=c.id;saveChats();render();};
+    d.ondblclick=()=>{const t=prompt("Rename chat",c.title);if(t){c.title=t;saveChats();render();}};
+    d.querySelector(".x").onclick=e=>{e.stopPropagation();if(!confirm("Delete this chat?"))return;chats=chats.filter(x=>x.id!==c.id);if(current===c.id)current=null;saveChats();render();};
+    $("chatList").appendChild(d);
+  });
+}
+function renderModelPicker(){
+  if(isCp()){$("quickModel").innerHTML='<option>◆ Microsoft 365 Copilot</option>';return;}
+  const list=[...new Set([S.model,...(S.models||[])].filter(Boolean))];
+  $("quickModel").innerHTML=list.map(m=>`<option ${m===S.model?"selected":""} value="${esc(m)}">◆ ${esc(m)}</option>`).join("");
+}
+function msgEl(m,idx){
+  const d=document.createElement("div");d.className="msg "+(m.role==="user"?"user":"bot");
+  d.innerHTML=`<img class="av" src="${av()}"><div style="min-width:0;max-width:88%"><div class="bubble"></div><div class="tools"></div></div>`;
+  const b=d.querySelector(".bubble");
+  if(m.role==="user") b.textContent=m.display||m.content; else b.innerHTML=m.error?`<span class="err">${esc(m.content)}</span>`:md(m.content);
+  const t=d.querySelector(".tools");
+  const add=(lbl,fn)=>{const x=document.createElement("button");x.textContent=lbl;x.onclick=fn;t.appendChild(x);};
+  add("Copy",()=>{navigator.clipboard.writeText(m.content);toast("Copied");});
+  if(m.role==="user") add("Edit",()=>editMsg(idx));
+  if(m.role==="assistant"&&idx===chat().messages.length-1) add("↻ Regenerate",regen);
+  if(m.model) add("· "+m.model,()=>{});
+  return d;
+}
+function render(){renderCore();window.ironAvatar&&window.ironAvatar.place();}
+function renderCore(){
+  renderList();renderModelPicker();renderFiles();
+  $("brandAv").src=av();$("brandName").textContent=S.name.toUpperCase();
+  document.title=`${S.name.toUpperCase()} // AUTZ Field Assistant`;
+  $("input").placeholder=`Ask ${S.name} anything...`;
+  const c=chat(),w=$("wrap");w.innerHTML="";
+  $("chatTitle").textContent=c?c.title:"New chat";
+  if(!c||!c.messages.length){
+    const q=S.quick.split("\n").map(l=>l.split("|")).filter(p=>p.length>1&&p[0].trim());
+    w.innerHTML=`<div class="welcome"><div class="hero3d" id="hero3d"><img src="${av()}"></div><h1>${esc(S.name.toUpperCase())}</h1><p>G'day ${esc(S.userName)}. What are we sorting out today?</p><div class="chips"></div></div>`;
+    q.forEach(([l,...p])=>{const b=document.createElement("button");b.className="chip";b.textContent=l.trim();
+      b.onclick=()=>{const i=$("input");i.value=p.join("|").trimStart();i.focus();autosize();};w.querySelector(".chips").appendChild(b);});
+    return;
+  }
+  c.messages.forEach((m,i)=>w.appendChild(msgEl(m,i)));
+  scroll();
+}
+const scroll=()=>{const m=$("msgs");m.scrollTop=m.scrollHeight;};
+
+/* ---------- File attachments (code/text) ---------- */
+function renderFiles(){
+  $("attach").innerHTML=files.map((f,i)=>`<span class="att">📄 ${esc(f.name)} <button onclick="files.splice(${i},1);renderFiles()">✕</button></span>`).join("");
+}
+async function addFiles(list){
+  for(const f of list){
+    if(f.size>1024*1024){toast(`${f.name} is over 1 MB — skipped`);continue;}
+    const text=await f.text();
+    if(/\u0000/.test(text.slice(0,2000))){toast(`${f.name} looks binary — skipped`);continue;}
+    files.push({name:f.name,text});
+  }
+  renderFiles();
+}
+$("fileIn").onchange=e=>{addFiles(e.target.files);e.target.value="";};
+const box=$("box");
+box.addEventListener("dragover",e=>{e.preventDefault();box.classList.add("drag");});
+box.addEventListener("dragleave",()=>box.classList.remove("drag"));
+box.addEventListener("drop",e=>{e.preventDefault();box.classList.remove("drag");addFiles(e.dataTransfer.files);});
+
+/* ---------- Chat logic ---------- */
+function newChat(){if(busy)return;current=null;saveChats();render();$("input").focus();}
+function ensureChat(first){
+  let c=chat();if(c)return c;
+  c={id:Date.now().toString(36),title:first.slice(0,40)+(first.length>40?"…":""),messages:[],updated:Date.now()};
+  chats.push(c);current=c.id;return c;
+}
+async function send(){
+  if(busy){ctrl&&ctrl.abort();return;}
+  const v=$("input").value.trim();if(!v&&!files.length)return;
+  let content=v, display=v;
+  if(files.length){
+    const ext=n=>(n.split(".").pop()||"").toLowerCase();
+    content+= "\n\n"+files.map(f=>`File: ${f.name}\n\`\`\`${ext(f.name)}\n${f.text}\n\`\`\``).join("\n\n");
+    display+=(v?"\n\n":"")+files.map(f=>"📄 "+f.name).join("  ");
+    files=[];
+  }
+  $("input").value="";autosize();
+  const c=ensureChat(v||display);c.messages.push({role:"user",content,display});c.updated=Date.now();
+  saveChats();render();await respond(c);
+}
+async function respond(c){
+  if(!isCp()&&(!S.url||!S.model||(!S.key&&!["ollama","lmstudio","custom"].includes(S.provider)))){openSettings();toast("Set up a provider, key + model first");return;}
+  busy=true;$("sendBtn").textContent="■ Stop";avatarState("thinking");
+  const reply={role:"assistant",content:"",model:S.model};c.messages.push(reply);
+  const el=msgEl(reply,c.messages.length-1);$("wrap").appendChild(el);
+  const b=el.querySelector(".bubble");b.innerHTML='<span class="cursor"></span>';scroll();
+  const history=c.messages.slice(0,-1).filter(m=>!m.error).slice(-S.hist).map(({role,content})=>({role,content}));
+  ctrl=new AbortController();
+  try{
+    if(isCp()){
+      reply.content=await cpAsk(c,c.messages.at(-2).content,ctrl.signal);avatarState("talking");
+    }else{
+    const res=await fetch(endpoint(),{method:"POST",headers:hdrs(),signal:ctrl.signal,body:JSON.stringify(reqBody(history,true))});
+    if(!res.ok){
+      let t=await res.text();try{t=JSON.parse(t).error?.message||t;}catch{}
+      throw new Error(`${res.status} — ${String(t).slice(0,300)}`);
+    }
+    const rd=res.body.getReader(),dec=new TextDecoder();let buf="",last=0;
+    while(true){
+      const {done,value}=await rd.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const parts=buf.split("\n");buf=parts.pop();
+      for(const p of parts){
+        const l=p.trim();if(!l.startsWith("data:"))continue;
+        const d=l.slice(5).trim();if(d==="[DONE]")continue;
+        let j;try{j=JSON.parse(d);}catch{continue;}
+        reply.content+=deltaText(j);if(reply.content)avatarState("talking");
+      }
+      if(Date.now()-last>60){b.innerHTML=md(reply.content)+'<span class="cursor"></span>';scroll();last=Date.now();}
+    }
+    }
+    setStatus(true);
+  }catch(e){
+    if(e.name==="AbortError"){if(!reply.content)reply.content="*(stopped)*";}
+    else{
+      setStatus(false);
+      let hint="";
+      if(/Failed to fetch|NetworkError/i.test(e.message)) hint=S.provider==="ollama"
+        ?"\nCan't reach Ollama. Is it running, and did you set OLLAMA_ORIGINS=* then restart it?"
+        :"\nCan't reach the endpoint. Check the URL and your internet.";
+      if(/CORS requests are not allowed/i.test(e.message)) hint="\nThis Anthropic org blocks browser access. Use a personal Console account/key, or switch the provider to OpenRouter.";
+      if(/^401/.test(e.message)) hint=isCp()?"\nCopilot sign-in expired — sign in again in Settings.":"\nAPI key rejected — re-paste it in Settings.";
+      if(isCp()&&/^403/.test(e.message)) hint="\nNo access — your account needs a Microsoft 365 Copilot licence and the app needs admin consent.";
+      if(/^429/.test(e.message)) hint="\nRate limit hit (free tiers have per-minute/day caps). Wait a bit or switch provider/model.";
+      if(/credit balance|billing/i.test(e.message)) hint="\nOut of API credit — top up in the Console.";
+      if(/model/i.test(e.message)&&/^(400|404)/.test(e.message)) hint="\nModel name not recognised — hit Fetch list in Settings and pick one.";
+      reply.content=(reply.content?reply.content+"\n\n":"")+"⚠ "+e.message+hint;reply.error=true;
+    }
+  }
+  busy=false;ctrl=null;$("sendBtn").textContent="Send ➤";avatarState(reply.error?"error":"idle");
+  c.updated=Date.now();saveChats();render();
+}
+function regen(){const c=chat();if(busy||!c)return;if(c.messages.at(-1).role==="assistant")c.messages.pop();render();respond(c);}
+function editMsg(i){
+  if(busy)return;const c=chat();const t=prompt("Edit message (everything after it will be redone)",c.messages[i].content);
+  if(t===null||!t.trim())return;c.cpId=null;c.messages=c.messages.slice(0,i);c.messages.push({role:"user",content:t.trim()});saveChats();render();respond(c);
+}
+function setStatus(ok){$("status").innerHTML=`<span class="dot ${ok?"ok":"bad"}"></span>${ok?"Online":"Connection problem"} · ${esc(S.provider)} · v${VERSION}`;}
+$("quickModel").onchange=e=>{if(isCp())return;S.model=e.target.value;saveS();toast("Model: "+S.model);};
+
+/* ---------- Settings ---------- */
+const F={sProvider:"provider",sUrl:"url",sKey:"key",sModel:"model",sTemp:"temp",sHist:"hist",sMaxTok:"maxTok",sCpTenant:"cpTenant",sCpClient:"cpClient",sVisor:"visorColor",sName:"name",sUserName:"userName",sSystem:"system",sQuick:"quick"};
+let pendingAvatar=null;
+function provUI(p){
+  const cp=p==="m365copilot";$("keyedRows").hidden=cp;$("cpRows").hidden=!cp;$("cpHelp").hidden=!cp;$("freeHelp").hidden=cp;
+  $("cpRedirect").value=location.protocol==="file:"?"(open Iron from http://localhost to get this)":redirectUri();cpStateLbl();
+}
+function openSettings(){provUI(S.provider);$("sAvatar3d").checked=S.avatar3d!==false;for(const k in F)$(k).value=S[F[k]];$("tVal").textContent=S.temp;pendingAvatar=S.avatar;$("sAvPrev").src=pendingAvatar||DEFAULT_AVATAR;$("modal").classList.add("open");}
+function closeSettings(){$("modal").classList.remove("open");}
+function readForm(){for(const k in F)S[F[k]]=$(k).value.trim?$(k).value.trim():$(k).value;S.system=$("sSystem").value;S.quick=$("sQuick").value;S.temp=+S.temp;S.hist=Math.max(2,+S.hist||30);S.maxTok=Math.max(256,+S.maxTok||16000);S.avatar=pendingAvatar||"";S.avatar3d=$("sAvatar3d").checked;}
+function saveSettings(){readForm();saveS();closeSettings();render();toast("Saved");}
+$("sProvider").onchange=e=>{const p=PROVIDERS[e.target.value];$("sUrl").value=p.url;$("sModel").value=p.model;$("sKey").value="";S.models=[];provUI(e.target.value);};
+$("sTemp").oninput=e=>$("tVal").textContent=e.target.value;
+$("nav").onclick=e=>{const p=e.target.dataset.p;if(!p)return;
+  document.querySelectorAll("#nav div").forEach(d=>d.classList.toggle("active",d.dataset.p===p));
+  document.querySelectorAll("[data-pane]").forEach(d=>d.hidden=d.dataset.pane!==p);};
+function resetPersona(){$("sSystem").value=DEFAULT_SYSTEM;}
+function resetAvatar(){pendingAvatar="";$("sAvPrev").src=DEFAULT_AVATAR;}
+$("sAvFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();
+  img.onload=()=>{const c=document.createElement("canvas");c.width=c.height=256;const x=c.getContext("2d");const s=Math.min(img.width,img.height);
+    x.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,256,256);pendingAvatar=c.toDataURL("image/jpeg",.85);$("sAvPrev").src=pendingAvatar;};
+  img.src=URL.createObjectURL(f);};
+async function fetchModels(){
+  readForm();
+  try{
+    const r=await fetch(base()+"/models"+(isClaude()?"?limit=100":""),{headers:hdrs()});
+    if(!r.ok)throw new Error(r.status+" "+(await r.text()).slice(0,120));
+    const j=await r.json();
+    let ids=(j.data||j.models||[]).map(m=>(m.id||m.name||"").replace(/^models\//,"")).filter(Boolean);
+    if(S.provider==="openrouter") ids=ids.filter(i=>/:free$/.test(i));
+    if(S.provider==="gemini") ids=ids.filter(i=>/gemini|gemma/i.test(i)&&!/embed|image|tts|audio|live|veo|imagen/i.test(i));
+    ids.sort();
+    S.models=ids;saveS();renderModelPicker();
+    $("modelList").innerHTML=ids.map(i=>`<option value="${esc(i)}">`).join("");
+    if(ids.length&&!ids.includes($("sModel").value)) $("sModel").value=ids.find(i=>/coder|codestral|flash|sonnet/i.test(i))||ids[0];
+    toast(`${ids.length} models found`);
+  }catch(e){toast("Couldn't fetch models: "+e.message);}
+}
+async function testConn(){
+  readForm();
+  if(isCp()){try{await cpToken();setStatus(true);toast("✔ Copilot linked");}catch(e){setStatus(false);toast("✖ "+e.message);}return;}
+  try{const body=reqBody([{role:"user",content:"Say ok"}],false);body.max_tokens=5;
+    const r=await fetch(endpoint(),{method:"POST",headers:hdrs(),body:JSON.stringify(body)});
+    if(!r.ok){let t=await r.text();try{t=JSON.parse(t).error?.message||t;}catch{}throw new Error(r.status+" "+String(t).slice(0,140));}
+    setStatus(true);toast("✔ Connected — she's sweet");
+  }catch(e){setStatus(false);toast("✖ "+e.message);}
+}
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();}
+function exportChat(){const c=chat();if(!c)return toast("Nothing to export");
+  download(c.title.replace(/[^\w\- ]/g,"")+".md",c.messages.map(m=>`### ${m.role==="user"?S.userName:S.name}\n\n${m.content}`).join("\n\n---\n\n"),"text/markdown");}
+function backup(){const s=Object.assign({},S,{key:""});download("iron-backup.json",JSON.stringify({settings:s,chats},null,1),"application/json");}
+$("restoreFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());
+  if(j.chats)chats=j.chats;if(j.settings)S=Object.assign({},S,j.settings,{key:S.key});saveS();saveChats();closeSettings();render();toast("Restored");}catch{toast("Bad backup file");}};
+function wipe(){if(!confirm("Delete ALL chats? No undo."))return;chats=[];current=null;saveChats();closeSettings();render();}
+
+/* ---------- Input ---------- */
+const autosize=()=>{const i=$("input");i.style.height="auto";i.style.height=Math.min(i.scrollHeight,220)+"px";};
+$("input").addEventListener("input",autosize);
+$("input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSettings();if(e.ctrlKey&&e.key.toLowerCase()==="n"&&!e.shiftKey){e.preventDefault();newChat();}});
+$("modal").onclick=e=>{if(e.target.id==="modal")closeSettings();};
+
+render();setStatus(false);$("status").innerHTML=`<span class="dot"></span>Ready · ${esc(S.provider)} · v${VERSION}`;
+cpHandleRedirect();
+if(!S.key&&!["ollama","lmstudio","custom","m365copilot"].includes(S.provider)) setTimeout(()=>{openSettings();toast("Grab a free Gemini key (see Settings), paste it, hit Fetch list, Save");},400);
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const W = window, D = document;
+const S = () => W.getIronSettings();
+const PI = Math.PI;
+
+/* ---------- Renderer / scene ---------- */
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(W.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+const canvas = renderer.domElement;
+canvas.className = 'iron3d';
+canvas.style.cssText = 'width:100%;height:100%;display:block;cursor:pointer';
+canvas.title = 'Iron';
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
+camera.position.set(0, 0.1, 6.2);
+camera.lookAt(0, -0.12, 0);
+
+scene.add(new THREE.HemisphereLight(0x8fb0ff, 0x1a0d05, 0.7));
+const key = new THREE.DirectionalLight(0xffc27a, 2.4); key.position.set(2.5, 2, 3); scene.add(key);
+const rim = new THREE.DirectionalLight(0xff8a00, 3.0); rim.position.set(-3, 1.5, -2); scene.add(rim);
+const fill = new THREE.PointLight(0x4a7dff, 5, 10); fill.position.set(-2, -1, 2.5); scene.add(fill);
+
+/* ---------- Materials ---------- */
+const M = o => new THREE.MeshStandardMaterial(o);
+const skin  = M({ color: 0xb97c55, roughness: 0.7 });
+const hair  = M({ color: 0x2b1d14, roughness: 1 });
+const metal = M({ color: 0x1c2333, metalness: 0.85, roughness: 0.35 });
+const worn  = M({ color: 0x4a4038, metalness: 0.6, roughness: 0.6 });
+const cloth = M({ color: 0x6e5238, roughness: 1 });
+const dark  = M({ color: 0x0d0806, roughness: 0.9 });
+const eyeW  = M({ color: 0xe9e2d6, roughness: 0.3 });
+const iris  = M({ color: 0x4a2c16, roughness: 0.3 });
+const glowMats = [];
+const G = () => { const m = new THREE.MeshBasicMaterial({ color: 0xffb020 }); glowMats.push(m); return m; };
+
+const add = (parent, geo, mat, p = [0, 0, 0], r = [0, 0, 0], s = [1, 1, 1]) => {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...p); m.rotation.set(...r); m.scale.set(...s);
+  parent.add(m); return m;
+};
+
+/* glow halo sprite */
+const haloTex = (() => {
+  const c = D.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const halos = [];
+const halo = (parent, p, s, base) => {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+  sp.position.set(...p); sp.scale.set(s, s, s); sp.userData.base = base; parent.add(sp); halos.push(sp); return sp;
+};
+
+/* ---------- Build Iron ---------- */
+const avatar = new THREE.Group(); scene.add(avatar);
+const body = new THREE.Group(); avatar.add(body);
+const head = new THREE.Group(); head.position.y = -0.15; avatar.add(head);   // neck pivot
+const hi = new THREE.Group(); hi.position.y = 0.5; head.add(hi);             // head centre
+
+// Face
+add(hi, new THREE.SphereGeometry(0.62, 48, 48), skin, [0, 0, 0], [0, 0, 0], [0.92, 1.12, 0.98]);
+add(hi, new THREE.SphereGeometry(0.12, 16, 16), skin, [-0.56, 0.02, 0], [0, 0, 0], [0.45, 1, 0.75]);
+add(hi, new THREE.ConeGeometry(0.075, 0.22, 16), skin, [0, 0, 0.62], [PI / 2 + 0.25, 0, 0]);
+add(hi, new THREE.BoxGeometry(0.2, 0.045, 0.06), hair, [-0.2, 0.25, 0.55], [0, -0.2, 0.12]);
+add(hi, new THREE.BoxGeometry(0.06, 0.28, 0.18), hair, [-0.52, -0.02, 0.15]);
+
+// Visible eye
+const eye = new THREE.Group(); eye.position.set(-0.2, 0.11, 0.5); hi.add(eye);
+add(eye, new THREE.SphereGeometry(0.075, 24, 16), eyeW);
+add(eye, new THREE.SphereGeometry(0.042, 16, 12), iris, [0, 0, 0.055]);
+add(eye, new THREE.SphereGeometry(0.02, 12, 8), dark, [0, 0, 0.086]);
+
+// Cyber visor over the other eye
+const visor = new THREE.Group(); visor.position.set(0.21, 0.12, 0.5); visor.rotation.y = 0.35; hi.add(visor);
+add(visor, new THREE.BoxGeometry(0.34, 0.22, 0.14), metal);
+const lens = add(visor, new THREE.BoxGeometry(0.27, 0.09, 0.02), G(), [0, 0, 0.07]);
+const scanMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const scan = add(visor, new THREE.BoxGeometry(0.035, 0.1, 0.025), scanMat, [0, 0, 0.075]);
+for (const [x, y] of [[-0.14, 0.085], [0.14, 0.085], [-0.14, -0.085], [0.14, -0.085]])
+  add(visor, new THREE.CylinderGeometry(0.014, 0.014, 0.02, 8), worn, [x, y, 0.072], [PI / 2, 0, 0]);
+const visorHalo = halo(visor, [0, 0, 0.12], 0.75, 0.55);
+
+// Headband, helmet, brim glow, fin, ear guard
+add(hi, new THREE.TorusGeometry(0.6, 0.028, 10, 64), metal, [0, 0.12, 0], [PI / 2, 0, 0], [0.95, 1, 1]);
+add(hi, new THREE.SphereGeometry(0.665, 48, 24, 0, PI * 2, 0, PI * 0.4), metal, [0, 0, 0], [0, 0, 0], [0.93, 1.12, 0.99]);
+add(hi, new THREE.TorusGeometry(0.632, 0.016, 8, 64), G(), [0, 0.23, 0], [PI / 2, 0, 0], [0.93, 0.99, 1]);
+add(hi, new THREE.BoxGeometry(0.05, 0.16, 0.75), worn, [0, 0.74, -0.02]);
+add(hi, new THREE.CylinderGeometry(0.17, 0.17, 0.08, 24), metal, [0.58, 0.06, 0], [0, 0, PI / 2]);
+add(hi, new THREE.CylinderGeometry(0.05, 0.05, 0.09, 16), G(), [0.6, 0.06, 0], [0, 0, PI / 2]);
+
+// Antenna
+add(hi, new THREE.CylinderGeometry(0.012, 0.012, 0.55, 8), worn, [0.6, 0.45, -0.05], [0, 0, -0.15]);
+const tipMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b });
+add(hi, new THREE.SphereGeometry(0.03, 12, 8), tipMat, [0.641, 0.722, -0.05]);
+const tipHalo = halo(hi, [0.641, 0.722, -0.05], 0.3, 0.8);
+
+// Beard, moustache, mouth
+add(hi, new THREE.SphereGeometry(0.6, 40, 32, 0, PI * 2, PI * 0.52, PI * 0.48), hair, [0, -0.06, 0.03], [0, 0, 0], [0.97, 1.13, 1.0]);
+add(hi, new THREE.TorusGeometry(0.13, 0.03, 8, 20, PI), hair, [0, -0.28, 0.6]);
+const mouth = add(hi, new THREE.SphereGeometry(0.1, 24, 16), dark, [0, -0.31, 0.585], [0, 0, 0.1], [1, 0.15, 0.35]);
+
+// Neck + scarf
+add(body, new THREE.CylinderGeometry(0.25, 0.28, 0.5, 24), skin, [0, -0.55, 0]);
+add(body, new THREE.TorusGeometry(0.36, 0.17, 16, 48), cloth, [0, -0.72, 0], [PI / 2, 0, 0], [1.15, 1, 1]);
+add(body, new THREE.TorusGeometry(0.33, 0.13, 12, 40), cloth, [0, -0.58, 0.02], [PI / 2 + 0.15, 0, 0.2], [1.05, 0.95, 1]);
+add(body, new THREE.BoxGeometry(0.22, 0.5, 0.06), cloth, [-0.35, -1.05, 0.55], [-0.25, 0, 0.2]);
+
+// Chest armour (ellipsoid dome)
+const CH = { y: -1.3, rx: 1.1875, ry: 0.7125, rz: 0.684 };
+add(body, new THREE.SphereGeometry(0.95, 48, 32, 0, PI * 2, 0, PI * 0.5), metal, [0, CH.y, 0], [0, 0, 0], [1.25, 0.75, 0.72]);
+const onChest = (x, y, out = 0.01) => {
+  const nx = x / CH.rx, ny = (y - CH.y) / CH.ry, nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+  const g = new THREE.Group(); const z = nz * CH.rz;
+  const n = new THREE.Vector3(x / CH.rx ** 2, (y - CH.y) / CH.ry ** 2, z / CH.rz ** 2).normalize();
+  g.position.set(x, y, z).addScaledVector(n, out);
+  g.lookAt(g.position.clone().add(n)); body.add(g); return g;
+};
+for (const [x, y, rz] of [[-0.5, -1.05, 0.45], [-0.45, -1.15, 0.45], [0.75, -1.2, -0.5]])
+  add(onChest(x, y), new THREE.BoxGeometry(0.3, 0.022, 0.02), G(), [0, 0, 0], [0, 0, rz]);
+const core = onChest(0.4, -1.0, 0.012);
+add(core, new THREE.TorusGeometry(0.11, 0.03, 12, 32), worn);
+add(core, new THREE.CylinderGeometry(0.09, 0.09, 0.03, 24), G(), [0, 0, 0], [PI / 2, 0, 0]);
+const coreHalo = halo(core, [0, 0, 0.06], 0.6, 0.6);
+
+// Pauldrons
+for (const s of [-1, 1]) {
+  const p = add(body, new THREE.SphereGeometry(0.42, 32, 24, 0, PI * 2, 0, PI * 0.55), worn, [s * 1.0, -0.95, 0], [0, 0, -s * 0.35], [1, 0.8, 1]);
+  add(p, new THREE.TorusGeometry(0.415, 0.02, 8, 40), G(), [0, -0.066, 0], [PI / 2, 0, 0]);
+  add(p, new THREE.SphereGeometry(0.3, 24, 16, 0, PI * 2, 0, PI * 0.5), metal, [0, 0.1, 0], [0, 0, 0], [1, 0.9, 1]);
+}
+// Rifle barrel over the shoulder
+add(body, new THREE.CylinderGeometry(0.05, 0.05, 1.3, 12), metal, [-0.78, -0.3, -0.45], [0, 0, 0.15]);
+add(body, new THREE.BoxGeometry(0.14, 0.3, 0.12), worn, [-0.72, -0.75, -0.45], [0, 0, 0.15]);
+
+// Dust particles
+const N = 90, pos = new Float32Array(N * 3), spd = new Float32Array(N);
+for (let i = 0; i < N; i++) {
+  pos[i * 3] = (Math.random() - 0.5) * 3.6; pos[i * 3 + 1] = -1.7 + Math.random() * 3.3; pos[i * 3 + 2] = (Math.random() - 0.5) * 2;
+  spd[i] = 0.05 + Math.random() * 0.12;
+}
+const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+const dustMat = new THREE.PointsMaterial({ size: 0.035, color: 0xffb020, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
+scene.add(new THREE.Points(dustGeo, dustMat));
+
+/* ---------- Behaviour ---------- */
+const clock = new THREE.Clock();
+const ptr = { x: 0, y: 0, t: -99 };
+const onMove = e => { const w = e.view || W; ptr.x = e.clientX / w.innerWidth * 2 - 1; ptr.y = e.clientY / w.innerHeight * 2 - 1; ptr.t = clock.elapsedTime; };
+D.addEventListener('mousemove', onMove);
+
+let state = 'idle', idleTimer = null, nod = 0, flash = 0;
+let mouthOpen = 0, mouthTarget = 0, nextMouth = 0, nextBlink = 2, blink = 0;
+const visorCol = new THREE.Color(0xffb020), errCol = new THREE.Color(0xff3b3b), tmp = new THREE.Color();
+
+function setState(s) {
+  clearTimeout(idleTimer);
+  if (s === 'idle' && state === 'talking') { idleTimer = setTimeout(() => { state = 'idle'; }, 450); return; }
+  state = s;
+  if (s === 'error') idleTimer = setTimeout(() => { state = 'idle'; }, 3000);
+}
+
+const QUIPS = u => [`Oi ${u}, watch the visor.`, `Still here, ${u}. Still breathin'.`, `Ready when you are, mate.`,
+  `Wasteland's quiet today.`, `Poke me again and I'll invoice ya.`, `She'll be right.`];
+canvas.addEventListener('click', () => {
+  nod = 0.6; flash = 0.4;
+  const q = QUIPS(S().userName || 'mate'); W.toast && W.toast(q[Math.floor(Math.random() * q.length)]);
+});
+
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  if (!canvas.isConnected) return;
+
+  avatar.position.y = Math.sin(t * 1.5) * 0.025;
+
+  let lx, ly;
+  if (t - ptr.t < 4) { ly = ptr.x * 0.5; lx = ptr.y * 0.28; }
+  else { ly = Math.sin(t * 0.4) * 0.25; lx = Math.sin(t * 0.27) * 0.08; }
+  if (state === 'thinking') { ly = 0.35 + Math.sin(t * 0.8) * 0.05; lx = -0.18; }
+  if (nod > 0) { nod -= dt; lx += Math.sin((0.6 - nod) * PI * 3.3) * 0.22; }
+  const k = Math.min(1, dt * 6);
+  head.rotation.y += (ly - head.rotation.y) * k;
+  head.rotation.x += (lx - head.rotation.x) * k;
+  head.rotation.z = Math.sin(t * 0.7) * 0.03 + (state === 'thinking' ? 0.08 : 0);
+  body.rotation.y += (ly * 0.25 - body.rotation.y) * Math.min(1, dt * 3);
+
+  // Mouth
+  if (state === 'talking') {
+    if (t > nextMouth) { mouthTarget = Math.random() < 0.15 ? 0.05 : 0.2 + Math.random() * 0.8; nextMouth = t + 0.07 + Math.random() * 0.08; }
+  } else mouthTarget = 0;
+  mouthOpen += (mouthTarget - mouthOpen) * Math.min(1, dt * 18);
+  mouth.scale.y = 0.15 + mouthOpen * 0.9;
+  mouth.rotation.z = state === 'talking' ? 0 : 0.1;
+
+  // Blink
+  if (t > nextBlink) { blink = 0.13; nextBlink = t + 2 + Math.random() * 4; }
+  blink -= dt; eye.scale.y = blink > 0 ? 0.1 : 1;
+
+  // Glow
+  let inten = 1 + Math.sin(t * 2) * 0.1;
+  if (state === 'thinking') inten = 1.25 + Math.sin(t * 10) * 0.3;
+  if (state === 'talking') inten = 1.1 + mouthOpen * 0.5;
+  if (flash > 0) { flash -= dt; inten += flash * 3; }
+  const col = state === 'error' ? errCol : visorCol;
+  for (const m of glowMats) m.color.copy(col).multiplyScalar(inten);
+  for (const h of halos) if (h !== tipHalo) { h.material.color.copy(col); h.material.opacity = h.userData.base * Math.min(1.6, inten); }
+  scan.visible = state === 'thinking';
+  scan.position.x = Math.sin(t * 5) * 0.11;
+  dustMat.color.copy(col);
+
+  const tipOn = (t % 1.6) < 0.12 || state === 'error';
+  tipMat.color.setHex(tipOn ? 0xff4040 : 0x401010);
+  tipHalo.material.color.setHex(0xff3b3b); tipHalo.material.opacity = tipOn ? 0.9 : 0;
+
+  // Dust drift
+  for (let i = 0; i < N; i++) {
+    pos[i * 3 + 1] += spd[i] * dt; pos[i * 3] += Math.sin(t * 0.5 + i) * 0.002;
+    if (pos[i * 3 + 1] > 1.6) pos[i * 3 + 1] = -1.7;
+  }
+  dustGeo.attributes.position.needsUpdate = true;
+
+  renderer.render(scene, camera);
+}
+
+let gen = 0;
+function startLoop(win) {
+  const g = ++gen;
+  const f = () => { if (g !== gen) return; tick(); win.requestAnimationFrame(f); };
+  win.requestAnimationFrame(f);
+}
+
+function resize() {
+  const p = canvas.parentElement; if (!p) return;
+  const w = Math.max(1, p.clientWidth), h = Math.max(1, p.clientHeight);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.fov = camera.aspect < 1 ? 2 * Math.atan(Math.tan(15 * PI / 180) / camera.aspect) * 180 / PI : 30;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas);
+
+/* ---------- Placement: welcome hero / corner dock / pop-out ---------- */
+let pipWin = null;
+function place() {
+  const s = S();
+  const hero = D.getElementById('hero3d'), dock = D.getElementById('dock'), mini = D.getElementById('dockMini');
+  visorCol.set(s.visorColor || '#ffb020');
+  D.getElementById('dockLabel').textContent = (s.name || 'Iron').toUpperCase();
+  if (s.avatar3d === false) {
+    if (pipWin) pipWin.close();
+    canvas.remove(); dock.hidden = true; mini.hidden = true; return;
+  }
+  if (pipWin) { dock.hidden = true; mini.hidden = true; return; }
+  if (hero) { hero.classList.add('live'); hero.appendChild(canvas); dock.hidden = true; mini.hidden = true; }
+  else {
+    dock.hidden = !!s.dockHidden; mini.hidden = !s.dockHidden;
+    if (!s.dockHidden) D.getElementById('dockStage').appendChild(canvas); else canvas.remove();
+  }
+  requestAnimationFrame(resize);
+}
+
+async function popOut() {
+  if (pipWin) { pipWin.focus(); return; }
+  if (!('documentPictureInPicture' in W)) { W.toast('Pop-out needs Microsoft Edge or Chrome'); return; }
+  try {
+    pipWin = await W.documentPictureInPicture.requestWindow({ width: 280, height: 320 });
+  } catch (e) { W.toast('Pop-out blocked: ' + e.message); pipWin = null; return; }
+  const pd = pipWin.document;
+  pd.title = (S().name || 'Iron');
+  pd.documentElement.style.cssText = 'height:100%';
+  pd.body.style.cssText = 'margin:0;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 40%,#1a2850,#0b1220 72%)';
+  pd.body.appendChild(canvas);
+  pd.addEventListener('mousemove', onMove);
+  pipWin.addEventListener('resize', resize);
+  pipWin.addEventListener('pagehide', () => { pipWin = null; place(); startLoop(W); });
+  place(); resize(); startLoop(pipWin);
+}
+
+W.ironAvatar = { setState, place, popOut };
+place();
+startLoop(W);
+
+</script>
+</body>
+</html>
