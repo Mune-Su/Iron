@@ -1,122 +1,74 @@
-<#
-    update-iron.ps1
-    Updates the Iron AI helper repo from the latest Iron-vX.Y.Z.zip,
-    then commits + pushes to GitHub. Vercel deploys automatically from the push
-    (the iron Vercel project is connected to Mune-Su/Iron).
+﻿# update-iron.ps1 - replace the Iron repo with the newest Iron-vX.Y.Z version.
+# Lives in the repo root and works on any PC: no hard-coded user paths.
+#  1. Moves the newest Iron-v*.zip from Downloads into Documents\IronWorks\Iron versions.
+#  2. Picks the newest version there (zip or folder) and extracts it if needed.
+#  3. Replaces everything in the repo EXCEPT the items in $keep.
+#  4. Runs git add and shows git status. It does NOT commit or push.
 
-    Local stuff preserved: .git, .vercel, node_modules, .env*
+$repo      = $PSScriptRoot
+$versions  = Join-Path (New-Object -ComObject Shell.Application).NameSpace('shell:Personal').Self.Path 'IronWorks\Iron versions'
+$downloads = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+$keep      = '.git', '.vercel', '.gitignore', '.vercelignore', '.env', '.env.local', 'node_modules', 'update-iron.ps1'
 
-    Usage:
-      & "$([Environment]::GetFolderPath('MyDocuments'))\IronWorks\Iron versions\update-iron.ps1"
-    Options:
-      -RepoPath  "C:\path\to\Iron"       (default: %USERPROFILE%\Projects\Iron)
-      -ZipPath   "C:\path\Iron-v2.2.zip" (default: newest Iron-v*.zip in versions folder or Downloads)
-      -NoPush    skip git commit/push
-#>
-[CmdletBinding()]
-param(
-    [string]$RepoPath = (Join-Path $env:USERPROFILE 'Projects\Iron'),
-    [string]$ZipPath,
-    [switch]$NoPush
-)
-
-$ErrorActionPreference = 'Stop'
-
-function Write-Step($msg) { Write-Host "`n>> $msg" -ForegroundColor DarkYellow }
-function Write-Ok($msg)   { Write-Host "   $msg" -ForegroundColor Green }
-function Write-Warn2($msg){ Write-Host "   $msg" -ForegroundColor Yellow }
-
-$VersionsDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'IronWorks\Iron versions'
-$Downloads   = Join-Path $env:USERPROFILE 'Downloads'
-
-Write-Host "=== IRON UPDATER ===" -ForegroundColor DarkYellow
-
-# ---- 1. Find zip -------------------------------------------------------------
-Write-Step "Locating Iron zip"
-if (-not $ZipPath) {
-    $candidates = @()
-    foreach ($dir in @($VersionsDir, $Downloads)) {
-        if (Test-Path $dir) {
-            $candidates += Get-ChildItem -Path $dir -Filter 'Iron-v*.zip' -File -ErrorAction SilentlyContinue
-        }
-    }
-    if (-not $candidates) { throw "No Iron-v*.zip found in '$VersionsDir' or '$Downloads'." }
-
-    $ZipPath = ($candidates | Sort-Object {
-        if ($_.BaseName -match 'Iron-v(\d+(\.\d+){0,3})') { [version]($matches[1] + $(if ($matches[1] -notmatch '\.') { '.0' })) } else { [version]'0.0' }
-    }, LastWriteTime | Select-Object -Last 1).FullName
+function VersionOf($item) {
+  if ($item.Name -match 'v(\d+\.\d+\.\d+)') { [version]$Matches[1] } else { [version]'0.0.0' }
 }
-if (-not (Test-Path $ZipPath)) { throw "Zip not found: $ZipPath" }
+function Stop-Update($msg) { Write-Host $msg -ForegroundColor Red; exit 1 }
 
-$ZipName = [IO.Path]::GetFileNameWithoutExtension($ZipPath)
-$Version = if ($ZipName -match 'Iron-v([\d\.]+)') { $matches[1] } else { 'unknown' }
-Write-Ok "Using $ZipName (v$Version)"
+if (-not (Test-Path (Join-Path $repo '.git'))) { Stop-Update "$repo is not a Git repo - keep this script in the Iron repo folder." }
+if (-not (Test-Path $versions)) { New-Item -ItemType Directory $versions -Force | Out-Null; Write-Host "Created $versions" }
+Write-Host "Repo:     $repo" -ForegroundColor DarkGray
+Write-Host "Versions: $versions" -ForegroundColor DarkGray
 
-# Archive a copy into the versions folder for version control
-if (-not (Test-Path $VersionsDir)) { New-Item -ItemType Directory -Path $VersionsDir -Force | Out-Null }
-$archived = Join-Path $VersionsDir ([IO.Path]::GetFileName($ZipPath))
-if ((Resolve-Path $ZipPath).Path -ne $archived) {
-    Copy-Item $ZipPath $archived -Force
-    Write-Ok "Archived to $VersionsDir"
+# 1. a new zip in Downloads goes into the versions folder
+$dl = Get-ChildItem $downloads -Filter 'Iron-v*.zip' -ErrorAction SilentlyContinue |
+  Sort-Object { VersionOf $_ } -Descending | Select-Object -First 1
+if ($dl) {
+  $dest = Join-Path $versions ("Iron-v{0}.zip" -f (VersionOf $dl))
+  Move-Item $dl.FullName $dest -Force
+  Write-Host "Moved $($dl.Name) from Downloads into Iron versions"
 }
 
-# ---- 2. Extract --------------------------------------------------------------
-Write-Step "Extracting"
-$Staging = Join-Path $env:TEMP "iron-update-$([guid]::NewGuid().ToString('N').Substring(0,8))"
-Expand-Archive -Path $ZipPath -DestinationPath $Staging -Force
+# 2. newest version in the versions folder
+$latest = Get-ChildItem $versions -Filter 'Iron-v*' |
+  Where-Object { $_.PSIsContainer -or $_.Extension -eq '.zip' } |
+  Sort-Object { VersionOf $_ }, { $_.PSIsContainer } -Descending | Select-Object -First 1
+if (-not $latest) { Stop-Update "No Iron-v* zip or folder found in $versions" }
+$ver = VersionOf $latest
 
-# If the zip contains a single top folder (Iron-v2.1\), use that as source
-$top = Get-ChildItem $Staging
-$Source = if ($top.Count -eq 1 -and $top[0].PSIsContainer) { $top[0].FullName } else { $Staging }
-Write-Ok "Source: $Source"
+$src = $latest.FullName
+if (-not $latest.PSIsContainer) {
+  $src = Join-Path $versions ("Iron-v{0}" -f $ver)
+  Expand-Archive $latest.FullName -DestinationPath $src -Force
+}
+$index = Get-ChildItem $src -Recurse -Filter index.html | Sort-Object { $_.FullName.Length } | Select-Object -First 1
+if (-not $index) { Stop-Update "No index.html inside $src - is it the right folder?" }
+$src = $index.DirectoryName
 
-# ---- 3. Sync into repo (preserve local config) -------------------------------
-Write-Step "Syncing into $RepoPath"
-if (-not (Test-Path $RepoPath)) {
-    New-Item -ItemType Directory -Path $RepoPath -Force | Out-Null
-    Write-Warn2 "Repo folder didn't exist - created it."
+Write-Host ""
+Write-Host "Updating to v$ver from:" -ForegroundColor Cyan
+Write-Host "  $src"
+
+# 3. don't wipe work that hasn't been committed
+Set-Location $repo
+$dirty = git status --porcelain
+if ($dirty) {
+  Write-Host ""
+  Write-Host "The repo has changes that aren't committed yet:" -ForegroundColor Yellow
+  $dirty | Select-Object -First 15 | ForEach-Object { Write-Host "  $_" }
+  $ans = Read-Host "Replace them anyway? (y/n)"
+  if ($ans -ne 'y') { Stop-Update "Stopped - nothing was changed." }
 }
 
-$rcArgs = @(
-    $Source, $RepoPath, '/MIR',
-    '/XD', '.git', '.vercel', 'node_modules',
-    '/XF', '.env', '.env.local', '.env.*', 'update-iron.ps1',
-    '/NFL', '/NDL', '/NJH', '/NJS', '/NP'
-)
-& robocopy @rcArgs | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "Robocopy failed (exit $LASTEXITCODE)." }
-Write-Ok "Files synced (kept .git, .vercel, node_modules, .env*)"
+Get-ChildItem -Force | Where-Object { $keep -notcontains $_.Name } | Remove-Item -Recurse -Force
+Copy-Item "$src\*" . -Recurse -Force
 
-Remove-Item $Staging -Recurse -Force -ErrorAction SilentlyContinue
-
-Push-Location $RepoPath
-try {
-    # ---- 4. Git commit + push (Vercel deploys from the push) -----------------
-    if ($NoPush) {
-        Write-Warn2 "Skipping git (-NoPush)"
-    }
-    elseif (-not (Test-Path (Join-Path $RepoPath '.git'))) {
-        Write-Warn2 "No .git in repo folder - skipping push. Run 'git init' + add remote first."
-    }
-    else {
-        Write-Step "Committing + pushing to GitHub"
-        git add -A
-        $changes = git status --porcelain
-        if ($changes) {
-            git commit -m "Iron v$Version" | Out-Null
-            $branch = (git rev-parse --abbrev-ref HEAD).Trim()
-            git push origin $branch
-            if ($LASTEXITCODE -ne 0) { throw "git push failed." }
-            Write-Ok "Pushed 'Iron v$Version' to origin/$branch"
-            Write-Ok "Vercel will deploy automatically - check the iron project in the Vercel dashboard."
-        } else {
-            Write-Ok "No changes to commit"
-        }
-    }
-}
-finally {
-    Pop-Location
-}
-
-Write-Host "`n=== IRON v$Version UPDATE COMPLETE ===" -ForegroundColor Green
-Write-Host "Android: open the site in Chrome > refresh. If the old version sticks, close + reopen the installed app." -ForegroundColor DarkGray
+# 4. stage and show what changed
+git add --all 2>$null
+Write-Host ""
+Write-Host "Changes (A = added, M = modified, D = deleted, R = renamed):" -ForegroundColor Cyan
+git status --short
+Write-Host ""
+Write-Host "If anything shows as D (deleted) that you didn't expect, stop and check. Otherwise:" -ForegroundColor Cyan
+Write-Host "  git commit -m `"v$ver`""
+Write-Host "  ipush"
