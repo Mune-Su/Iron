@@ -1,24 +1,23 @@
 <#
     update-iron.ps1
     Updates the Iron AI helper repo from the latest Iron-vX.Y.Z.zip,
-    commits + pushes to GitHub, then deploys to Vercel.
+    then commits + pushes to GitHub. Vercel deploys automatically from the push
+    (the iron Vercel project is connected to Mune-Su/Iron).
 
     Local stuff preserved: .git, .vercel, node_modules, .env*
 
     Usage:
       & "$([Environment]::GetFolderPath('MyDocuments'))\IronWorks\Iron versions\update-iron.ps1"
     Options:
-      -RepoPath  "C:\path\to\Iron"     (default: %USERPROFILE%\Projects\Iron)
+      -RepoPath  "C:\path\to\Iron"       (default: %USERPROFILE%\Projects\Iron)
       -ZipPath   "C:\path\Iron-v2.2.zip" (default: newest Iron-v*.zip in versions folder or Downloads)
       -NoPush    skip git commit/push
-      -NoDeploy  skip vercel deploy
 #>
 [CmdletBinding()]
 param(
     [string]$RepoPath = (Join-Path $env:USERPROFILE 'Projects\Iron'),
     [string]$ZipPath,
-    [switch]$NoPush,
-    [switch]$NoDeploy
+    [switch]$NoPush
 )
 
 $ErrorActionPreference = 'Stop'
@@ -92,7 +91,7 @@ Remove-Item $Staging -Recurse -Force -ErrorAction SilentlyContinue
 
 Push-Location $RepoPath
 try {
-    # ---- 4. Git commit + push ------------------------------------------------
+    # ---- 4. Git commit + push (Vercel deploys from the push) -----------------
     if ($NoPush) {
         Write-Warn2 "Skipping git (-NoPush)"
     }
@@ -109,19 +108,10 @@ try {
             git push origin $branch
             if ($LASTEXITCODE -ne 0) { throw "git push failed." }
             Write-Ok "Pushed 'Iron v$Version' to origin/$branch"
+            Write-Ok "Vercel will deploy automatically - check the iron project in the Vercel dashboard."
         } else {
             Write-Ok "No changes to commit"
         }
-    }
-
-    # ---- 5. Vercel deploy ----------------------------------------------------
-    if ($NoDeploy) {
-        Write-Warn2 "Skipping deploy (-NoDeploy)"
-    } else {
-        Write-Step "Deploying to Vercel (prod)"
-        npx vercel --prod --yes
-        if ($LASTEXITCODE -ne 0) { throw "Vercel deploy failed." }
-        Write-Ok "Deployed"
     }
 }
 finally {
